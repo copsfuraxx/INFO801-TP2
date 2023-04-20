@@ -4,6 +4,22 @@ import cors from 'cors'
 const app = express()
 const port = 3000
 import fetch from 'node-fetch'
+import {WebSocketServer} from 'ws'
+const sockserver = new WebSocketServer({ port: 8080 })
+
+var webSocket = []
+
+sockserver.on('connection', ws => {
+    webSocket.push(ws)
+    console.log('New client connected!')
+    ws.on('close', () => {
+        console.log('Client has disconnected!')
+        webSocket.pop(ws)
+    })
+    ws.onerror = function () {
+      console.log('websocket error')
+    }
+})
 
 const cinqMin = Date.parse('1970-01-01T00:05:00')
 
@@ -28,15 +44,15 @@ app.get('/', function(req, res) {
 app.get('/disjonctOn', (req, res) => {
     if (isDisconected) {
         isDisconected = false
+        webSocket.forEach((i) => i.send('disj:on'))
     }
     res.send()
 })
 
 app.post('/temperature', (req, res) => {
     const body = req.body
+    webSocket.forEach((i) => i.send('temp:' + body.temperature))
     console.log(body.temperature)
-    console.log(body.temperature > temp + 2)
-    console.log(body.temperature < temp - 2)
     let etat
     if (body.temperature > temp + 2) etat = 'off'
     else if (body.temperature < temp - 2) etat = 'on'
@@ -52,6 +68,7 @@ app.post('/temperature', (req, res) => {
                     lastReport = Date.now()
                     isDisconected = true
                     isChaudiereOn = false
+                    webSocket.forEach((i) => i.send('disj:off'))
                 }
                 isChaudiereOn = json.isOn
             })
@@ -59,6 +76,7 @@ app.post('/temperature', (req, res) => {
             lastReport = Date.now()
             isDisconected = true
             isChaudiereOn = false
+            webSocket.forEach((i) => i.send('disj:off'))
         }
     }
     res.json({isOn:isChaudiereOn})
