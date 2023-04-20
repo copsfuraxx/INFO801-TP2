@@ -6,8 +6,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1 id="temperature">Température :</h1>
-    <h1 id="disj">Disjoncteur :</h1>
+  <div class="column">
+    <div class="column margin">
+      <h1>Thermobaraque</h1>
+      <div class="row">
+        <p>Température :</p>
+        <p id="temperature"></p>
+      </div>
+      <div id="disj" class="green"></div>
+      <button type="button" onclick="rejonct()">Rejoncter</button>    
+    </div>
+    <div class="column margin">
+      <label for="temp">Température:</label>
+      <input type="text" id="temp" name="temp">
+      <button type="button" onclick="changeTemp()"  value="20">Changer la température</button> 
+    </div>
+    <div class="column margin">
+      <label for="debut">Programme Début:</label>
+      <input type="text" id="debut" name="debut">
+      <label for="fin">Programme Fin:</label>
+      <input type="text" id="fin" name="fin">
+      <button type="button" onclick="programme()">Définir le programme</button> 
+    </div>
+  </div>
 </body>
-<script src="index.js"></script>
+<script src="socket.js"></script>
 </html>

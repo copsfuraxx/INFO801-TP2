@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 const body = {temperature: 10};
 
-setInterval(run, 1000);
+setInterval(run, 2000);
 
 async function run() {
 	fetch('http://localhost:3000/temperature', {
@@ -16,6 +16,5 @@ async function run() {
 		else {
 			body.temperature--
 		}
-		console.log(body)
 	})
 }

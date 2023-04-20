@@ -14,7 +14,8 @@ app.use(cors({
 
 app.get('/etat/:etat', (req, res) => {
     let etat = req.params.etat
-    console.log(etat)
+    let op = etat == 'on' ? "Chaudière : Allumage de la chaudière" : "Chaudière : Arret de la chaudière"
+    console.log(op)
     if (etat == 'on') res.json({statut:0, isOn:true})
     else if (etat == 'off') res.json({statut:0, isOn:false})
     else res.json({statut:1, isOn:null})
