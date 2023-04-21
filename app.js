@@ -101,12 +101,14 @@ app.post('/temperature', (req, res) => {
                             webSocket.forEach((i) => i.send('disj:off'))
                         }
                         isChaudiereOn = json.isOn
+                        res.json({isOn:isChaudiereOn})
                     })
                 } catch (error) {
                     lastReport = Date.now()
                     isDisconected = true
                     isChaudiereOn = false
                     webSocket.forEach((i) => i.send('disj:off'))
+                    res.json({isOn:isChaudiereOn})
                 }
             }
         } else if(programme == "régulé") {
@@ -125,17 +127,22 @@ app.post('/temperature', (req, res) => {
                             webSocket.forEach((i) => i.send('disj:off'))
                         }
                         isChaudiereOn = json.isOn
+                        res.json({isOn:isChaudiereOn})
                     })
                 } catch (error) {
                     lastReport = Date.now()
                     isDisconected = true
                     isChaudiereOn = false
                     webSocket.forEach((i) => i.send('disj:off'))
+                    res.json({isOn:isChaudiereOn})
                 }
+            } else {
+                res.json({isOn:isChaudiereOn})
             }
+        } else {
+            res.json({isOn:isChaudiereOn})
         }
     }
-    res.json({isOn:isChaudiereOn})
 })
 
 app.listen(port, () => {
