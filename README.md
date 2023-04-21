@@ -1,9 +1,9 @@
+
 # Architecture Logicielle TP2
 ### Antoine DEPOISIER & Jules FINCK
 
-<p align="center">
-  <img src="images/archi2.png" alt="drawing"/>
-</p>
+Le lien du TP est disponible sur le repo git suivant :
+https://github.com/copsfuraxx/INFO801-TP2
 
 ## Choix d'architecture
 
@@ -15,73 +15,282 @@ Notre application comporte 3 composants :
 
 ### La Chaudière
 
-Ce composant n'effectue pas de calcul, il réalise juste le stockage du stockage de données. Il stocke juste si la chaudière est allumé ou éteinte.
+Ce composant n'effectue pas de calcul, il réalise juste le stockage du stockage de données. Il stocke juste si la chaudière est allumée ou éteinte.
 
-Pour permettres aux autres composants de connaitre l'état de la chaudière, une inteface a été créé pour accéder à son état.
+Pour permettre aux autres composants de connaitre l'état de la chaudière, une interface a été créée pour accéder à son état.
 
-// Insérer du code ici
+```js
+app.get('/etat/:etat', (req, res) => {
+    let etat = req.params.etat
+    let op = etat == 'on' ? "Chaudière : Allumage de la chaudière" : "Chaudière : Arret de la chaudière"
+    console.log(op)
+    if (etat == 'on') res.json({statut:0, isOn:true})
+    else if (etat == 'off') res.json({statut:0, isOn:false})
+    else res.json({statut:1, isOn:null})
+})
+```
 
-// Insérer un dessin avec le point d'entré
+<p align="center">
+  <img src="images/chaudiere.png" alt="drawing"/>
+</p>
 
 ### Le Thermostat
 
-Ce composant effectue un calcul, mais il le fait uniquement par soucis de moyen technique. C'est à dire que nous n'avons pas un vrai thermostat connecté à requeter, donc nous avons fait en sorte que toutes les 5 secondes où la chaudière est alumé, la température va augmenter d'un degré.
+Ce composant effectue un calcul, mais il le fait uniquement par soucis de moyen technique. C'est-à-dire que nous n'avons pas un vrai thermostat connecté à requêter, donc nous avons fait en sorte que toutes les 2 secondes où la chaudière est allumée, la température va augmenter d'un degré.
 
-// Insérer du code ici
+```js
+setInterval(run, 2000);
+
+async function run() {
+  fetch('http://localhost:3000/temperature', {
+    method: 'post',
+    body: JSON.stringify(body),
+    headers: {'Content-Type': 'application/json'}
+  }).then((response) => response.json()).then((json) => {
+    if (json.isOn) {
+      body.temperature++
+    }
+    else {
+      body.temperature--
+    }
+  })
+}
+```
 
 Ce composant sert au stockage de la température ambiante.
 
-Ce composant ne possède pas d'interface, aucun agent externe ne peut le requeter.
+Ce composant ne possède pas d'interface, aucun agent externe ne peut le requêter.
 
-// Insérer un dessin sans points d'entrés
+<p align="center">
+  <img src="images/thermostat.png" alt="drawing"/>
+</p>
 
-### Le Controleur
+### Le Contrôleur
 
-A chaque fois que le controleur recoit une nouvelle température, il va effectuer différentes actions selons les données stockées en mémoire.
+À chaque fois que le contrôleur reçoit une nouvelle température, il va effectuer différentes actions selon les données stockées en mémoire.
 
-Il y a plusieurs scénario.
+Il y a plusieurs scénarios.
 
 Tout d'abord, si le dernier rapport est un échec et date de moins de 5 minutes, ou bien si le disjoncteur est éteint, il ne va rien faire.
 
-// Insérer le code du if
+```js
+if(!(Date.now() - lastReport < cinqMin || isDisconected))
+```
 
-Dans un second temps, si le système est en mode programmé, il va alumer la chaudière chaudière si l'ont se trouve dans la plage horaire programmé et si elle est éteinte.
+Dans un second temps, si le système est en mode programmé, il va allumer la chaudière si l'ont se trouve dans la plage horaire programmée et si elle est éteinte.
 
-// Insérer le code du if 
+```js
+let dateNow = new Date()
+dateNow = dateNow.getHours() * 3600000 + dateNow.getMinutes() * 60000
+console.log(debutProgramme)
+console.log(dateNow)
+if(debutProgramme <= dateNow && finProgramme >= dateNow) {
+    try {
+        fetchWithTimeout('http://localhost:3001/etat/on', {
+            method: 'get',
+            headers: {'Content-Type': 'application/json'}
+        }).then((response) => response.json()).then((json) => {
+            if (json.statut == 1) {
+                lastReport = Date.now()
+                isDisconected = true
+                isChaudiereOn = false
+                webSocket.forEach((i) => i.send('disj:off'))
+            }
+            isChaudiereOn = json.isOn
+            res.json({isOn:isChaudiereOn})
+        }).catch((error) => {
+            lastReport = Date.now()
+            isDisconected = true
+            isChaudiereOn = false
+            webSocket.forEach((i) => i.send('disj:off'))
+            res.json({isOn:isChaudiereOn})
+        })
+    } catch (error) {
+        lastReport = Date.now()
+        isDisconected = true
+        isChaudiereOn = false
+        webSocket.forEach((i) => i.send('disj:off'))
+        res.json({isOn:isChaudiereOn})
+    }
+}
+```
 
-Dans un dernier temps, si la température mesuré est différente de la température référante avec une fourchette de 2° C, il va soit alumer la chaudière ou l'éteindre selon la différence et l'état actuel de la chaudière.
+Dans un dernier temps, si la température mesurée est différente de la température référente avec une fourchette de 2° C, il va soit allumer la chaudière ou l'éteindre selon la différence et l'état actuel de la chaudière.
 
-// Insérer le code du if
+```js
+else {
+    let etat = (currentTemp > tempR + 2) ? 'off' : (currentTemp < tempR - 2 ? 'on' : null)
+    if((etat == 'on') || (etat == 'off' && isChaudiereOn)) {
+        console.log("Controleur : Demande à la Chaudière : " + etat)
+        try {
+            fetchWithTimeout('http://localhost:3001/etat/' + etat, {
+                method: 'get',
+                headers: {'Content-Type': 'application/json'}
+            }).then((response) => response.json()).then((json) => {
+                if (json.statut == 1) {
+                    lastReport = Date.now()
+                    isDisconected = true
+                    isChaudiereOn = false
+                    webSocket.forEach((i) => i.send('disj:off'))
+                } else {
+                    isChaudiereOn = json.isOn
+                }
+                res.json({isOn:isChaudiereOn})
+            }).catch((error) => {
+                lastReport = Date.now()
+                isDisconected = true
+                isChaudiereOn = false
+                webSocket.forEach((i) => i.send('disj:off'))
+                res.json({isOn:isChaudiereOn})
+            })
+        } catch (error) {
+            lastReport = Date.now()
+            isDisconected = true
+            isChaudiereOn = false
+            webSocket.forEach((i) => i.send('disj:off'))
+            res.json({isOn:isChaudiereOn})
+        }
+    } else {
+        res.json({isOn:isChaudiereOn})
+    }
+}
+```
 
-Le controleur possède une interface pour permettre au thermostat de lui envoyer la température mesure Tm.
+Le contrôleur possède une interface pour permettre au thermostat de lui envoyer la température mesure Tm.
 
-// Insérer un dessin avec le point d'entré
+<p align="center">
+  <img src="images/controleur.png" alt="drawing"/>
+</p>
 
 ## Les Connecteurs
 
-### Thermostat - Controleur
+### Thermostat - Contrôleur
 
-Avec l'interface du controleur, le thermostat envoie la température ambiante.
+Avec l'interface du contrôleur, le thermostat envoie la température ambiante.
 Comme dit précédemment, par soucis de moyen technique, cette interface renvoie le fait que la chaudière soit allumé ou non.
 Le thermostat stocke cette valeur pour augmenter ou descendre la température.
 
-// Insérerer le code de comment le thermostat communique avec le controleur
+```js
+fetch('http://localhost:3000/temperature', {
+  method: 'post',
+  body: JSON.stringify(body),
+  headers: {'Content-Type': 'application/json'}
+})
+```
 
-// Insérer un dessin avec communication entre les deux
+<p align="center">
+  <img src="images/thermostat-controleur.png" alt="drawing"/>
+</p>
 
-### Controleur - Chaudière
+### Contrôleur - Chaudière
 
-De part l'interface de la chaudière, le controleur peut décider d'allumer ou d'éteindre la chaudière.
-A la fin de l'instruction, la chaudière renvoie un rapport sur son fonctionnement.
+Grâce à l'interface de la chaudière, le contrôleur peut décider d'allumer ou d'éteindre la chaudière.
+À la fin de l'instruction, la chaudière renvoie un rapport sur son fonctionnement.
 
-// Insérer code de comment le controleur communique avec la chaudière
+```js
+fetchWithTimeout('http://localhost:3001/etat/' + etat, {
+    method: 'get',
+    headers: {'Content-Type': 'application/json'}
+})
+```
 
-// Insérer un dessin avec communication entre les deux
+La requête pour communiquer avec la chaudière possède un timeout pour produire un rapport de dysfonctionnement si elle ne possède pas de réponse 10 secondes après.
+
+```js
+async function fetchWithTimeout(resource, options = {}) {
+    options.timeout = 10000
+
+    let controller = new AbortController()
+    clearTimeout(id)
+    id = setTimeout(() => controller.abort(), options.timeout)
+    let response = await fetch(resource, {
+        options,
+        signal: controller.signal  
+    })
+    clearTimeout(id)
+    return response
+}
+```
+
+<p align="center">
+  <img src="images/controleur-chaudiere.png" alt="drawing"/>
+</p>
 
 ## Système complet
 
-// Insérer un dessin aavec le systeme en entier
+<p align="center">
+  <img src="images/system.png" alt="drawing"/>
+</p>
+
+## Le client
+
+Nous avons également créé une interface web pour permettre au client de contrôler l'état du logiciel. 
+
+Voici une image de la vue :
+
+<p align="center">
+  <img src="images/vue.png" alt="drawing"/>
+</p>
+
+Le client et le contrôleur communiquent entre eux par socket, le contrôleur mets à jour certaines données quand il reçoit une notification du client par socket.
+
+```js
+sockserver.on('connection', ws => {
+    ws.on('close', () => {
+        console.log('Client has disconnected!')
+        webSocket.pop(ws)
+    })
+    ws.onerror = function () {
+      console.log('websocket error')
+    }
+    ws.on('message', function(dataJSON) {
+        let data = JSON.parse(dataJSON)
+        switch(data.message) {
+            case "connect":
+                webSocket.push(ws)
+                console.log('New client connected!')
+                break;
+            case "changeTemp":
+                tempR = Number(data.temp)
+                break;
+            case "rejoncter":
+                isDisconected = false
+                break;
+            case "programme":
+                if(data.debut == data.fin) {
+                    programme = "régulé"
+                    debutProgramme = dateNull
+                    finProgramme = dateNull
+                } else {
+                    programme = "programmé"
+                    let d = data.debut.split(':')
+                    debutProgramme = d[0] * 3600000 + d[1] * 60000
+                    d = data.fin.split(':')
+                    finProgramme = d[0] * 3600000 + d[1] * 60000
+                }
+                tempR = tempR
+                break;
+          } 
+    })
+})
+```
+
+Le client aussi doit mettre à jour certaines informations quand le contrôleur en modifie.
+
+```js
+socket.addEventListener("message", (event) => {
+  let res = event.data.split(':')
+  if (res[0] == 'temp') pTemp.innerText = res[1]
+  else if (res[0] == 'disj') pDisj.className = "red"
+});
+```
+
+<p align="center">
+  <img src="images/vue-controleur.png" alt="drawing"/>
+</p>
 
 ## Conclusion
+
+Ces différents TPs nous ont permis d'améliorer notre point de vue sur la création d'une architecture logicielle. Pour nos futurs projets, ils vont nous permettre de bien identifier la nature d'un projet et les spécifications dont il a besoin pour créer des architectures optimales. Avant cela, nous nous reposions trop facilement sur les architectures avec lesquelles nous étions le plus à l'aise sans prendre en compte si cette architecture collait au projet, et parfois, nous perdions du temps en utilisant une architecture qui nous était connue, mais pas optimale pour le projet.
 
 

@@ -168,14 +168,14 @@ app.listen(port, () => {
 
 async function fetchWithTimeout(resource, options = {}) {
     options.timeout = 10000
-    
+
     let controller = new AbortController()
     clearTimeout(id)
     id = setTimeout(() => controller.abort(), options.timeout)
     let response = await fetch(resource, {
-      options,
-      signal: controller.signal  
+        options,
+        signal: controller.signal  
     })
     clearTimeout(id)
     return response
-  }
+}
