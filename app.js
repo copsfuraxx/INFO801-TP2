@@ -13,10 +13,10 @@ const cinqMin = 30000//30 sec
 
 var isChaudiereOn = false
 let tempR = 20
-var lastReport = Date.parse('1970-01-01T00:00:00')
-var dateNull = Date.parse('1970-01-01T00:00:00')
-var debutProgramme = Date.parse('1970-01-01T00:00:00')
-var finProgramme = Date.parse('1970-01-01T00:00:00')
+var lastReport = 0
+var dateNull = 0
+var debutProgramme = 0
+var finProgramme = 0
 var isDisconected = false
 var id
 var programme = "régulé";
@@ -35,6 +35,7 @@ sockserver.on('connection', ws => {
             case "connect":
                 webSocket.push(ws)
                 console.log('New client connected!')
+                break;
             case "changeTemp":
                 tempR = Number(data.temp)
                 break;
@@ -48,8 +49,10 @@ sockserver.on('connection', ws => {
                     finProgramme = dateNull
                 } else {
                     programme = "programmé"
-                    debutProgramme = Date.parse("1970-01-01T"+ data.debut + ":00")
-                    finProgramme = Date.parse("1970-01-01T"+ data.fin + ":00")
+                    let d = data.debut.split(':')
+                    debutProgramme = d[0] * 3600000 + d[1] * 60000
+                    d = data.fin.split(':')
+                    finProgramme = d[0] * 3600000 + d[1] * 60000
                 }
                 tempR = tempR
                 break;
@@ -85,14 +88,13 @@ app.post('/temperature', (req, res) => {
     console.log("Controleur : Programme : " + programme)
     console.log("Controleur : Disjoncté : " + isDisconected)
     
-    console.log(Date.now() - lastReport)
-    console.log(cinqMin)
     if(!(Date.now() - lastReport < cinqMin || isDisconected)) {
-        console.log('nique sa mere')
         if(programme == "programmé") {
-            var midnight = new Date();
-            midnight.setHours(0,0,0,0);
-            if((midnight + debut) < Date.now() && (midnight + fin) > Date.now()) {
+            let dateNow = new Date()
+            dateNow = dateNow.getHours() * 3600000 + dateNow.getMinutes() * 60000
+            console.log(debutProgramme)
+            console.log(dateNow)
+            if(debutProgramme <= dateNow && finProgramme >= dateNow) {
                 try {
                     fetchWithTimeout('http://localhost:3001/etat/on', {
                         method: 'get',
@@ -121,7 +123,7 @@ app.post('/temperature', (req, res) => {
                     res.json({isOn:isChaudiereOn})
                 }
             }
-        } else if(programme == "régulé") {
+        } else {
             let etat = (currentTemp > tempR + 2) ? 'off' : (currentTemp < tempR - 2 ? 'on' : null)
             if((etat == 'on') || (etat == 'off' && isChaudiereOn)) {
                 console.log("Controleur : Demande à la Chaudière : " + etat)
@@ -156,8 +158,6 @@ app.post('/temperature', (req, res) => {
             } else {
                 res.json({isOn:isChaudiereOn})
             }
-        } else {
-            res.json({isOn:isChaudiereOn})
         }
     } else {
         res.json({isOn:isChaudiereOn})

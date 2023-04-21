@@ -7,7 +7,6 @@ const socket = new WebSocket("ws://localhost:8080");
 
 socket.addEventListener("open", (event) => {
   socket.send(JSON.stringify({message: "connect"}))
-  socket.send(JSON.stringify({message: "changeTemp", temp: temp.value}))
 });
 
 socket.addEventListener("message", (event) => {
