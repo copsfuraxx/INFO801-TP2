@@ -89,39 +89,37 @@ app.post('/temperature', (req, res) => {
     console.log("Controleur : Disjoncté : " + isDisconected)
     
     if(!(Date.now() - lastReport < cinqMin || isDisconected)) {
-        if(programme == "programmé") {
-            let dateNow = new Date()
-            dateNow = dateNow.getHours() * 3600000 + dateNow.getMinutes() * 60000
-            console.log(debutProgramme)
-            console.log(dateNow)
-            if(debutProgramme <= dateNow && finProgramme >= dateNow) {
-                try {
-                    fetchWithTimeout('http://localhost:3001/etat/on', {
-                        method: 'get',
-                        headers: {'Content-Type': 'application/json'}
-                    }).then((response) => response.json()).then((json) => {
-                        if (json.statut == 1) {
-                            lastReport = Date.now()
-                            isDisconected = true
-                            isChaudiereOn = false
-                            webSocket.forEach((i) => i.send('disj:off'))
-                        }
-                        isChaudiereOn = json.isOn
-                        res.json({isOn:isChaudiereOn})
-                    }).catch((error) => {
+        let dateNow = new Date()
+        dateNow = dateNow.getHours() * 3600000 + dateNow.getMinutes() * 60000
+        console.log(debutProgramme)
+        console.log(dateNow)
+        if(debutProgramme <= dateNow && finProgramme >= dateNow) {
+            try {
+                fetchWithTimeout('http://localhost:3001/etat/on', {
+                    method: 'get',
+                    headers: {'Content-Type': 'application/json'}
+                }).then((response) => response.json()).then((json) => {
+                    if (json.statut == 1) {
                         lastReport = Date.now()
                         isDisconected = true
                         isChaudiereOn = false
                         webSocket.forEach((i) => i.send('disj:off'))
-                        res.json({isOn:isChaudiereOn})
-                    })
-                } catch (error) {
+                    }
+                    isChaudiereOn = json.isOn
+                    res.json({isOn:isChaudiereOn})
+                }).catch((error) => {
                     lastReport = Date.now()
                     isDisconected = true
                     isChaudiereOn = false
                     webSocket.forEach((i) => i.send('disj:off'))
                     res.json({isOn:isChaudiereOn})
-                }
+                })
+            } catch (error) {
+                lastReport = Date.now()
+                isDisconected = true
+                isChaudiereOn = false
+                webSocket.forEach((i) => i.send('disj:off'))
+                res.json({isOn:isChaudiereOn})
             }
         } else {
             let etat = (currentTemp > tempR + 2) ? 'off' : (currentTemp < tempR - 2 ? 'on' : null)
